@@ -1,0 +1,15 @@
+"""Prompt templates for lesson generation."""
+
+from .prompts import (
+    CONTENT_ANALYSIS_PROMPT,
+    CONTENT_VALIDATION_PROMPT,
+    DIALOGUE_GENERATION_PROMPT,
+    TOPIC_EXTRACTION_PROMPT,
+)
+
+__all__ = [
+    "CONTENT_ANALYSIS_PROMPT",
+    "DIALOGUE_GENERATION_PROMPT",
+    "TOPIC_EXTRACTION_PROMPT",
+    "CONTENT_VALIDATION_PROMPT",
+]
