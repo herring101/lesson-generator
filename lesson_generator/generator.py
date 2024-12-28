@@ -9,7 +9,7 @@ from typing import Any, Dict, Optional, Tuple
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-from .core.models import DialogueChunk, Topic
+from .core.models import Topic
 from .processors.content import ContentAnalysisProcessor
 from .processors.dialogue import DialogueProcessor
 from .processors.validation import ValidationProcessor
@@ -172,6 +172,11 @@ class LessonGenerator:
             self.logger.info(
                 f"Successfully parsed content structure with {len(content_structure.main_themes)} main themes"
             )
+
+            # 構造情報の出力
+            structure_content = self._format_structure_content(content_structure)
+            structure_path = os.path.join(output_dir, "00_content_structure.md")
+            self._write_output(structure_path, structure_content)
 
             # トピックごとの処理
             os.makedirs(output_dir, exist_ok=True)
@@ -407,21 +412,71 @@ class LessonGenerator:
             self.logger.error(f"Error formatting topic content: {str(e)}")
             raise
 
-    def _format_structured_dialogue(self, dialogue: DialogueChunk) -> str:
-        """対話の構造化データをMarkdown形式に整形"""
+    def _format_structure_content(self, structure: Any) -> str:
+        """コンテンツ構造をMarkdown形式に整形"""
         lines = [
-            "# 対話の構造化データ",
-            "\n## 思考プロセス",
-            dialogue.thinking,
-            "\n## コンテンツ概要",
-            dialogue.content,
-            "\n## 対話内容",
-            dialogue.dialogue,
-            "\n## カバーされたポイント",
-            "\n".join([f"- {point}" for point in dialogue.key_points_covered]),
-            f"\n続きが必要: {'はい' if dialogue.requires_continuation else 'いいえ'}",
+            "# コンテンツ構造",
+            "\n## 主要テーマ",
         ]
-        return "\n\n".join(lines)
+
+        # メインテーマの追加
+        for i, theme in enumerate(structure.main_themes, 1):
+            lines.extend(
+                [
+                    f"\n### {i}. {theme.title}",
+                    f"概要: {theme.summary}",
+                ]
+            )
+            if theme.related_topics:
+                lines.append("\n関連トピック:")
+                lines.extend([f"- {topic}" for topic in theme.related_topics])
+
+        # タイムラインがある場合は追加
+        if hasattr(structure, "timeline") and structure.timeline:
+            lines.append("\n## タイムライン")
+            for period in structure.timeline:
+                lines.extend(
+                    [
+                        f"\n### {period.period}",
+                        *[f"- {event}" for event in period.events],
+                    ]
+                )
+
+        # トピック情報の追加（存在する場合）
+        if hasattr(structure, "topics"):
+            lines.append("\n## 詳細トピック構造")
+            for i, topic in enumerate(structure.topics, 1):
+                lines.extend(
+                    [
+                        f"\n### {i}. {topic.title}",
+                        "\n学習目標:",
+                    ]
+                )
+                for obj in topic.learning_objectives:
+                    lines.extend(
+                        [
+                            f"- {obj.objective}",
+                            "  達成基準:",
+                            *[f"  - {criterion}" for criterion in obj.success_criteria],
+                            f"  評価方法: {obj.evaluation_method}",
+                        ]
+                    )
+
+                lines.extend(
+                    ["\n重要ポイント:", *[f"- {point}" for point in topic.key_points]]
+                )
+
+                if topic.outline:
+                    lines.extend(
+                        [
+                            "\nアウトライン:",
+                            *[f"{i+1}. {item}" for i, item in enumerate(topic.outline)],
+                        ]
+                    )
+
+                lines.append(f"\n予想所要時間: {topic.estimated_duration}")
+
+        return "\n".join(lines)
 
     def _read_input_file(self, file_path: str) -> str:
         """入力ファイルの読み込み"""
